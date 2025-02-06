@@ -1,23 +1,23 @@
-const { ethers } = require("hardhat");
+const hre = require("hardhat");
 
 async function main() {
-  const MusicNFTMarketplace = await ethers.getContractFactory(
-    "MusicNFTMarketplace"
-  );
-  const marketplace = await MusicNFTMarketplace.deploy();
-  await marketplace.waitForDeployment();
+  const Contract = await hre.ethers.getContractFactory("MusicNFTMarketplace");
 
-  console.log(
-    "MusicNFTMarketplace deployed to:",
-    await marketplace.getAddress()
-  );
+  console.log("Deploying contract...");
+
+  // Deploy the contract
+  const contract = await Contract.deploy();
+  await contract.waitForDeployment(); //  Correct way to wait for deployment in Ethers v6
+
+  // Get the deployed contract address
+  const contractAddress = await contract.getAddress();
+
+  console.log("Contract deployed to:", contractAddress);
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  });
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
 
-//address: 0x9A676e781A523b5d0C0e43731313A708CB607508
+//address: 0x63406d65318404165cc7aBf857D882a6E4676278
