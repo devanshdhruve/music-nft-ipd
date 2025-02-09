@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Music, Tag } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import useWallet from "../hooks/useWallet";
 
 const mockOwnedNFTs = [
   {
@@ -15,15 +13,6 @@ const mockOwnedNFTs = [
 ];
 
 const SellNFT = () => {
-  const { account } = useWallet();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!account) {
-      navigate("/");
-    }
-  }, [account, navigate]);
-
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold text-white mb-8">Your Music NFTs</h1>

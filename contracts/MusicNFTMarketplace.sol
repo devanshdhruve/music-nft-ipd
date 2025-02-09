@@ -59,11 +59,14 @@ contract MusicNFTMarketplace is
 
     struct MusicNFT {
         address creator;
+        string name; // Add this
+        string description; // Add this
         string musicUrl;
         string imageUrl;
         uint256 price;
         uint256 maxSupply;
         uint256 currentSupply;
+        uint256 royaltyBPS; // Add this
         bool isActive;
     }
 
@@ -79,9 +82,11 @@ contract MusicNFTMarketplace is
         string imageUrl;
         string musicUrl;
         address creator;
+        uint256 price; // Added price
         uint256 maxSupply;
         uint256 currentSupply;
         uint256 royaltyBPS;
+        bool isActive; // Added isActive
     }
 
     mapping(uint256 => MusicNFT) public musicNFTs;
@@ -152,11 +157,14 @@ contract MusicNFTMarketplace is
 
         musicNFTs[newTokenId] = MusicNFT({
             creator: msg.sender,
+            name: _name, // Fixed: Added missing fields
+            description: _description,
             musicUrl: _musicUrl,
             imageUrl: _imageUrl,
             price: _price,
             maxSupply: _maxSupply,
             currentSupply: 0,
+            royaltyBPS: _royaltyBPS,
             isActive: true
         });
 
@@ -164,6 +172,32 @@ contract MusicNFTMarketplace is
 
         emit NFTCreated(newTokenId, msg.sender, _price, _maxSupply);
         return newTokenId;
+    }
+
+    function getAllMusicNFTs() external view returns (MusicNFT[] memory) {
+        uint256 totalNFTs = _tokenIdCounter.current();
+        uint256 validNFTCount;
+
+        // Count valid NFTs
+        for (uint256 i = 1; i <= totalNFTs; i++) {
+            if (musicNFTs[i].creator != address(0)) {
+                validNFTCount++;
+            }
+        }
+
+        // Allocate memory array for NFTs
+        MusicNFT[] memory allNFTs = new MusicNFT[](validNFTCount);
+        uint256 index = 0;
+
+        // Populate array with valid NFTs
+        for (uint256 i = 1; i <= totalNFTs; i++) {
+            if (musicNFTs[i].creator != address(0)) {
+                allNFTs[index] = musicNFTs[i];
+                index++;
+            }
+        }
+
+        return allNFTs;
     }
 
     function _beforeTokenTransfer(
@@ -493,9 +527,11 @@ contract MusicNFTMarketplace is
                 imageUrl: nft.imageUrl,
                 musicUrl: nft.musicUrl,
                 creator: nft.creator,
+                price: nft.price, // Added price
                 maxSupply: nft.maxSupply,
                 currentSupply: nft.currentSupply,
-                royaltyBPS: royaltyBPS
+                royaltyBPS: royaltyBPS,
+                isActive: nft.isActive // Added isActive
             });
     }
 
