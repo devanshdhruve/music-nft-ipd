@@ -58,15 +58,16 @@ contract MusicNFTMarketplace is
     event ListingCancelled(uint256 indexed tokenId, address indexed seller);
 
     struct MusicNFT {
+        uint256 tokenId; // Added tokenId
         address creator;
-        string name; // Add this
-        string description; // Add this
+        string name;
+        string description;
         string musicUrl;
         string imageUrl;
         uint256 price;
         uint256 maxSupply;
         uint256 currentSupply;
-        uint256 royaltyBPS; // Add this
+        uint256 royaltyBPS;
         bool isActive;
     }
 
@@ -147,17 +148,14 @@ contract MusicNFTMarketplace is
         if (_maxSupply == 0) revert InvalidSupply();
         if (_royaltyBPS > MAX_ROYALTY_BPS) revert InvalidRoyalty();
 
-        unchecked {
-            _tokenIdCounter.increment();
-        }
+        _tokenIdCounter.increment();
         uint256 newTokenId = _tokenIdCounter.current();
 
-        _tokenNames[newTokenId] = _name;
-        _tokenDescriptions[newTokenId] = _description;
-
+        // ✅ Store new NFT details
         musicNFTs[newTokenId] = MusicNFT({
+            tokenId: newTokenId, // Assign tokenId
             creator: msg.sender,
-            name: _name, // Fixed: Added missing fields
+            name: _name,
             description: _description,
             musicUrl: _musicUrl,
             imageUrl: _imageUrl,
@@ -168,10 +166,17 @@ contract MusicNFTMarketplace is
             isActive: true
         });
 
+        // ✅ Store metadata separately
+        _tokenNames[newTokenId] = _name;
+        _tokenDescriptions[newTokenId] = _description;
+
+        // ✅ Set token royalty
         _setTokenRoyalty(newTokenId, msg.sender, uint96(_royaltyBPS));
 
+        // ✅ Emit Token ID as part of the event
         emit NFTCreated(newTokenId, msg.sender, _price, _maxSupply);
-        return newTokenId;
+
+        return newTokenId; // Ensure token ID is returned
     }
 
     function getAllMusicNFTs() external view returns (MusicNFT[] memory) {
@@ -192,7 +197,7 @@ contract MusicNFTMarketplace is
         // Populate array with valid NFTs
         for (uint256 i = 1; i <= totalNFTs; i++) {
             if (musicNFTs[i].creator != address(0)) {
-                allNFTs[index] = musicNFTs[i];
+                allNFTs[index] = musicNFTs[i]; // tokenId is already inside the struct
                 index++;
             }
         }

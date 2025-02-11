@@ -28,7 +28,7 @@ describe("MusicNFTMarketplace", function () {
       const maxSupply = 100;
       const royaltyBPS = 1000; // 10%
 
-      // ✅ Expect NFTCreated event with correct args
+      // Expect NFTCreated event with correct args
       await expect(
         marketplace
           .connect(creator)
@@ -48,16 +48,17 @@ describe("MusicNFTMarketplace", function () {
       const tokenId = 1; // First token
       const nft = await marketplace.musicNFTs(tokenId);
 
-      // ✅ Validate all struct properties
+      // Validate all struct properties, including tokenId
+      expect(nft.tokenId).to.equal(tokenId); // New check for tokenId
       expect(nft.creator).to.equal(creator.address);
-      expect(nft.name).to.equal(name); // Added missing name check
-      expect(nft.description).to.equal(description); // Added missing description check
+      expect(nft.name).to.equal(name);
+      expect(nft.description).to.equal(description);
       expect(nft.musicUrl).to.equal(musicUrl);
       expect(nft.imageUrl).to.equal(imageUrl);
       expect(nft.price).to.equal(price);
       expect(nft.maxSupply).to.equal(maxSupply);
       expect(nft.currentSupply).to.equal(0);
-      expect(nft.royaltyBPS).to.equal(royaltyBPS); // Added missing royalty check
+      expect(nft.royaltyBPS).to.equal(royaltyBPS);
       expect(nft.isActive).to.be.true;
     });
   });
@@ -79,7 +80,9 @@ describe("MusicNFTMarketplace", function () {
           100,
           500 // 5% royalty
         )
-      ).to.emit(marketplace, "NFTCreated");
+      )
+        .to.emit(marketplace, "NFTCreated")
+        .withArgs(1, creator.address, ethers.parseEther("0.1"), 100);
 
       await expect(
         marketplace.connect(creator).createMusicNFT(
@@ -91,7 +94,9 @@ describe("MusicNFTMarketplace", function () {
           50,
           1000 // 10% royalty
         )
-      ).to.emit(marketplace, "NFTCreated");
+      )
+        .to.emit(marketplace, "NFTCreated")
+        .withArgs(2, creator.address, ethers.parseEther("0.2"), 50);
 
       // ✅ Fetch all NFT collections
       const collections = await marketplace.getAllMusicNFTs();
@@ -101,6 +106,7 @@ describe("MusicNFTMarketplace", function () {
 
       // ✅ Validate the first NFT (Token ID 1)
       const nft1 = collections[0];
+      expect(nft1.tokenId).to.equal(1); // Check tokenId
       expect(nft1.creator).to.equal(creator.address);
       expect(nft1.name).to.equal("Song 1");
       expect(nft1.description).to.equal("First NFT Song");
@@ -108,12 +114,13 @@ describe("MusicNFTMarketplace", function () {
       expect(nft1.imageUrl).to.equal("ipfs://image1");
       expect(nft1.price).to.equal(ethers.parseEther("0.1"));
       expect(nft1.maxSupply).to.equal(100);
-      expect(nft1.currentSupply).to.equal(0); // ✅ Ensure supply starts at 0
+      expect(nft1.currentSupply).to.equal(0);
       expect(nft1.royaltyBPS).to.equal(500);
       expect(nft1.isActive).to.be.true;
 
       // ✅ Validate the second NFT (Token ID 2)
       const nft2 = collections[1];
+      expect(nft2.tokenId).to.equal(2); // Check tokenId
       expect(nft2.creator).to.equal(creator.address);
       expect(nft2.name).to.equal("Song 2");
       expect(nft2.description).to.equal("Second NFT Song");
@@ -121,7 +128,7 @@ describe("MusicNFTMarketplace", function () {
       expect(nft2.imageUrl).to.equal("ipfs://image2");
       expect(nft2.price).to.equal(ethers.parseEther("0.2"));
       expect(nft2.maxSupply).to.equal(50);
-      expect(nft2.currentSupply).to.equal(0); // ✅ Ensure supply starts at 0
+      expect(nft2.currentSupply).to.equal(0);
       expect(nft2.royaltyBPS).to.equal(1000);
       expect(nft2.isActive).to.be.true;
     });
