@@ -1,28 +1,23 @@
 import React, { useState } from "react";
+import { useMintNFT } from "../hooks/useMintNFT";
+import { toast } from "react-toastify";
 
 const getIPFSUrl = (ipfsUrl) => {
-  // If URL is empty string, null, or undefined, return default image
   if (!ipfsUrl || ipfsUrl === "" || ipfsUrl === '""') {
-    return "/placeholder-music.png"; // Make sure this file exists in your public folder
+    return "/placeholder-music.png";
   }
 
   try {
-    // Remove any extra quotes that might be in the string
     ipfsUrl = ipfsUrl.replace(/['"]+/g, "");
-
     if (ipfsUrl.startsWith("ipfs://")) {
       return ipfsUrl.replace("ipfs://", "https://gateway.pinata.cloud/ipfs/");
     }
-
     if (ipfsUrl.startsWith("https://gateway.pinata.cloud")) {
       return ipfsUrl;
     }
-
-    // If it's just a CID
     if (ipfsUrl.match(/^[a-zA-Z0-9]{46,59}$/)) {
       return `https://gateway.pinata.cloud/ipfs/${ipfsUrl}`;
     }
-
     return "/placeholder-music.png";
   } catch (error) {
     console.error("Error formatting IPFS URL:", error);
@@ -32,17 +27,29 @@ const getIPFSUrl = (ipfsUrl) => {
 
 const MusicNFTCard = ({ nft }) => {
   const [imageError, setImageError] = useState(false);
+  const { mintNFT, loading } = useMintNFT();
+
+  const handleBuyNow = async () => {
+    if (!nft?.isActive) {
+      alert("This NFT is not available for minting");
+      return;
+    }
+
+    await mintNFT(nft.tokenId, nft.price);
+  };
 
   if (!nft) return null;
 
-  // Get image URL from either image or imageUrl property
   const imageUrl = nft.image || nft.imageUrl;
+  const musicUrl = nft.musicUrl || ""; // Ensure music URL is captured
 
   console.log("NFT Data in Card:", {
     tokenId: nft.tokenId,
     name: nft.name,
     imageUrl: imageUrl,
     formattedImageUrl: getIPFSUrl(imageUrl),
+    musicUrl: musicUrl,
+    formattedMusicUrl: getIPFSUrl(musicUrl),
   });
 
   const handleImageError = (e) => {
@@ -100,21 +107,37 @@ const MusicNFTCard = ({ nft }) => {
         </p>
       )}
 
-      {nft.musicUrl && (
+      {musicUrl && (
         <div className="mt-3">
           <audio controls className="w-full">
-            <source src={getIPFSUrl(nft.musicUrl)} type="audio/mpeg" />
+            <source src={getIPFSUrl(musicUrl)} type="audio/mpeg" />
             Your browser does not support the audio element.
           </audio>
         </div>
       )}
 
       <button
-        className="bg-purple-600 hover:bg-purple-700 text-white w-full mt-4 py-2 rounded-lg flex items-center justify-center gap-2 transition-colors"
-        disabled={!nft.isActive}
+        onClick={handleBuyNow}
+        disabled={!nft.isActive || loading}
+        className={`w-full mt-4 py-2 rounded-lg flex items-center justify-center gap-2
+          ${
+            nft.isActive && !loading
+              ? "bg-purple-600 hover:bg-purple-700 text-white"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+          }
+        `}
       >
-        <span>🛒</span>
-        <span>Buy Now</span>
+        {loading ? (
+          <>
+            <span className="animate-spin">↻</span>
+            Processing...
+          </>
+        ) : (
+          <>
+            <span>🛒</span>
+            Buy Now ({nft.price} ETH)
+          </>
+        )}
       </button>
     </div>
   );

@@ -1,38 +1,63 @@
 import { useState } from "react";
-import { getContract } from "../utils/contract";
 import { ethers } from "ethers";
+import { getContract } from "../utils/contract";
+import { toast } from "react-toastify";
 
-export const useMintNFT = (signer) => {
+export const useMintNFT = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const mintNFT = async (tokenId, amount, price) => {
+  const mintNFT = async (tokenId, price) => {
     setLoading(true);
     setError(null);
 
     try {
-      if (!signer) throw new Error("Signer is required");
-      if (!tokenId) throw new Error("Token ID is required");
-      if (Number(amount) <= 0) throw new Error("Invalid mint amount");
-      if (Number(price) <= 0) throw new Error("Invalid price");
+      if (!window.ethereum) {
+        throw new Error("Please install MetaMask");
+      }
 
+      // Request account access
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
       const contract = getContract(signer);
 
-      // Calculate total cost in Wei
-      const totalCost = ethers.utils.parseUnits(
-        (price * amount).toString(),
-        "wei"
-      );
+      // Convert ETH price to wei
+      const totalCost = ethers.parseEther(price.toString());
 
-      const tx = await contract.mintNFT(tokenId, amount, {
+      // Send transaction
+      const tx = await contract.mintNFT(tokenId, 1, {
         value: totalCost,
       });
 
+      // Wait for confirmation
       const receipt = await tx.wait();
+
+      // Show success toast with plain text
+      toast.success("NFT minted successfully! Click to view on Etherscan", {
+        onClick: () => {
+          window.open(`https://etherscan.io/tx/${tx.hash}`, "_blank");
+        },
+      });
+
       return { tx, receipt };
     } catch (error) {
+      console.error("Minting error:", error);
       setError(error);
-      console.error("Error minting NFT:", error);
+
+      // User-friendly error messages
+      let errorMessage = "Minting failed";
+      if (error.message.includes("insufficient funds")) {
+        errorMessage = "Insufficient ETH balance";
+      } else if (error.message.includes("user rejected")) {
+        errorMessage = "Transaction cancelled";
+      }
+
+      toast.error(errorMessage);
+      throw error;
     } finally {
       setLoading(false);
     }

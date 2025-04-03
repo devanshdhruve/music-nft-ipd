@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "D:\\Projects\\music-nft-ipd\\project\\contracts\\MusicNFTMarketplace.sol": {
-      "lastModificationDate": 1739857232074,
-      "contentHash": "09748ab183917998c00fdc109181fb2d",
+      "lastModificationDate": 1743614042706,
+      "contentHash": "eaeb15bd704415a18c07b1a30e502951",
       "sourceName": "contracts/MusicNFTMarketplace.sol",
       "solcConfig": {
         "version": "0.8.20",

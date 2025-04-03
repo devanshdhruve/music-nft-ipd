@@ -2,17 +2,25 @@ import React from "react";
 import useFetchMusicNFTs from "../hooks/useFetchMusicNFTs";
 import useWallet from "../hooks/useWallet";
 import MusicNFTCard from "../components/MusicNFTCard";
+import { toast } from "react-toastify";
 
 const Home = () => {
   const { account } = useWallet();
-  const { nfts, loading, error } = useFetchMusicNFTs();
+  const { nfts, loading, error, refreshNFTs } = useFetchMusicNFTs();
 
-  const handleBuyNFT = (tokenId) => {
+  const handleBuyNFT = async (tokenId, price) => {
     if (!account) {
-      alert("Please connect your wallet first");
+      toast.error("Please connect your wallet first");
       return;
     }
-    console.log("Buying NFT with tokenId:", tokenId);
+
+    try {
+      // This assumes your MusicNFTCard will handle the actual minting
+      console.log("Initiating purchase for NFT:", tokenId, "Price:", price);
+      // The card component will call useMintNFT hook directly
+    } catch (error) {
+      toast.error(`Failed to initiate purchase: ${error.message}`);
+    }
   };
 
   return (
@@ -29,7 +37,9 @@ const Home = () => {
           <MusicNFTCard
             key={nft.tokenId || index}
             nft={nft}
-            onBuy={handleBuyNFT}
+            account={account} // Pass account to card
+            onBuy={() => handleBuyNFT(nft.tokenId, nft.price)}
+            onMintSuccess={refreshNFTs} // Refresh list after mint
           />
         ))}
       </div>

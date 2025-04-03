@@ -56,6 +56,7 @@ contract MusicNFTMarketplace is
         uint256 amount
     );
     event ListingCancelled(uint256 indexed tokenId, address indexed seller);
+    event NFTMinted(address indexed minter, uint256 tokenId, uint256 amount);
 
     struct MusicNFT {
         uint256 tokenId; // Added tokenId
@@ -352,32 +353,23 @@ contract MusicNFTMarketplace is
 
         nft.currentSupply += _amount;
 
-        (address royaltyReceiver, uint256 royalty) = royaltyInfo(
-            _tokenId,
-            totalCost
-        );
-        uint256 payment = totalCost - royalty;
+        // During minting, send 100% to the artist (royalty receiver)
+        (address royaltyReceiver, ) = royaltyInfo(_tokenId, totalCost);
 
-        if (royalty > 0) {
-            (bool successRoyalty, ) = payable(royaltyReceiver).call{
-                value: royalty
-            }("");
-            if (!successRoyalty) revert TransferFailed();
-        }
+        // Send full payment to artist (no platform cut)
+        (bool success, ) = payable(royaltyReceiver).call{value: totalCost}("");
+        if (!success) revert TransferFailed();
 
-        if (payment > 0) {
-            (bool successPayment, ) = payable(owner()).call{value: payment}("");
-            if (!successPayment) revert TransferFailed();
-        }
-
+        // Refund excess ETH if user overpaid
         if (msg.value > totalCost) {
-            (bool success, ) = payable(msg.sender).call{
+            (bool refundSuccess, ) = payable(msg.sender).call{
                 value: msg.value - totalCost
             }("");
-            if (!success) revert TransferFailed();
+            if (!refundSuccess) revert TransferFailed();
         }
 
         _mint(msg.sender, _tokenId, _amount, "");
+        emit NFTMinted(msg.sender, _tokenId, _amount);
     }
 
     function updateNFTPrice(
