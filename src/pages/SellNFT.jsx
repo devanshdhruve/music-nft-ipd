@@ -149,7 +149,7 @@ const SellNFT = () => {
             </div>
           </section>
 
-          {/* Section 2: Marketplace Listings (for Buying) */}
+                    {/* Section 2: Marketplace Listings (for Buying) */}
           <section>
             <h2 className="text-3xl font-bold mb-6 border-b border-gray-700 pb-2">Marketplace Listings</h2>
             {loadingMarket && <p className="text-purple-300 text-center">Loading marketplace listings...</p>}
@@ -158,51 +158,60 @@ const SellNFT = () => {
               <p className="text-gray-400 text-center">No NFTs currently listed for sale by creators on the marketplace.</p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Remove the outer filter condition */}
               {marketNfts.map((listing) => (
-                // Ensure the buyer isn't the seller
-                listing.seller.toLowerCase() !== account.toLowerCase() && (
-                  <div key={listing.listingId} className="bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-700 flex flex-col">
-                    <img src={listing.imageUrl} alt={listing.name} className="w-full h-48 object-cover bg-gray-700" onError={(e) => { e.target.src="/placeholder.png"; }}/>
-                    <div className="p-4 flex flex-col flex-grow">
-                      <h3 className="text-xl font-semibold mb-1 truncate" title={listing.name}>{listing.name}</h3>
-                      <p className="text-xs text-gray-500 mb-1 truncate" title={listing.seller}>Seller: {listing.seller}</p>
-                      <p className="text-sm text-gray-400 mb-1">ID: {listing.tokenId}</p>
-                      <p className="text-md font-semibold text-purple-300 mb-2">{ethers.formatEther(listing.price)} ETH</p>
-                      <p className="text-sm text-gray-400 mb-3">Available: {listing.availableAmount}</p>
+                <div key={listing.listingId} className="bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-700 flex flex-col">
+                  <img src={listing.imageUrl} alt={listing.name} className="w-full h-48 object-cover bg-gray-700" onError={(e) => { e.target.src="/placeholder.png"; }}/>
+                  <div className="p-4 flex flex-col flex-grow">
+                    {/* Display listing details for everyone */}
+                    <h3 className="text-xl font-semibold mb-1 truncate" title={listing.name}>{listing.name}</h3>
+                    <p className="text-xs text-gray-500 mb-1 truncate" title={listing.seller}>Seller: {listing.seller}</p>
+                    <p className="text-sm text-gray-400 mb-1">ID: {listing.tokenId}</p>
+                    <p className="text-md font-semibold text-purple-300 mb-2">{ethers.formatEther(listing.price)} ETH</p>
+                    <p className="text-sm text-gray-400 mb-3">Available: {listing.availableAmount}</p>
 
-                      {/* Buy Input */}
-                      <div className="flex items-center space-x-2 mb-3 mt-auto pt-4 border-t border-gray-700">
-                        <Hash size={18} className="text-green-400 shrink-0"/>
-                        <input
-                          type="number"
-                          value={buyInputs[listing.listingId] || ''}
-                          onChange={(e) => handleBuyInputChange(listing.listingId, e.target.value)}
-                          min="1"
-                          max={listing.availableAmount}
-                          step="1"
-                          className="flex-1 p-1.5 border border-gray-600 rounded bg-gray-700 focus:ring-green-500 placeholder-gray-500 text-sm"
-                          placeholder={`Amount (Max: ${listing.availableAmount})`}
-                          aria-label={`Amount of ${listing.name} to buy`}
-                        />
-                        <span className="text-gray-400 text-sm">QTY</span>
+                    {/* Conditionally render Buy controls or 'Your Listing' message */}
+                    {listing.seller.toLowerCase() !== account.toLowerCase() ? (
+                      <>
+                        {/* Buy Input */}
+                        <div className="flex items-center space-x-2 mb-3 mt-auto pt-4 border-t border-gray-700">
+                           <Hash size={18} className="text-green-400 shrink-0"/>
+                           <input
+                             type="number"
+                             value={buyInputs[listing.listingId] || ''}
+                             onChange={(e) => handleBuyInputChange(listing.listingId, e.target.value)}
+                             min="1"
+                             max={listing.availableAmount}
+                             step="1"
+                             className="flex-1 p-1.5 border border-gray-600 rounded bg-gray-700 focus:ring-green-500 placeholder-gray-500 text-sm"
+                             placeholder={`Amount (Max: ${listing.availableAmount})`}
+                             aria-label={`Amount of ${listing.name} to buy`}
+                           />
+                           <span className="text-gray-400 text-sm">QTY</span>
+                         </div>
+
+                        {/* Buy Button */}
+                        <button
+                          onClick={() => handleBuyNFT(listing, buyInputs[listing.listingId])}
+                          className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 px-3 rounded text-sm"
+                          disabled={
+                            isBuying ||
+                            !buyInputs[listing.listingId] ||
+                            parseInt(buyInputs[listing.listingId]) <= 0 ||
+                            parseInt(buyInputs[listing.listingId]) > parseInt(listing.availableAmount)
+                          }
+                        >
+                          <ShoppingCart size={16} className="inline mr-1" /> Buy Now
+                        </button>
+                      </>
+                    ) : (
+                      // Display message if it's the user's own listing
+                      <div className="mt-auto pt-4 border-t border-gray-700">
+                        <p className="text-center text-purple-400 text-sm font-semibold">This is your listing</p>
                       </div>
-                      
-                      {/* Buy Button */}
-                      <button
-                        onClick={() => handleBuyNFT(listing, buyInputs[listing.listingId])}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2 px-3 rounded text-sm"
-                        disabled={
-                          isBuying ||
-                          !buyInputs[listing.listingId] || 
-                          parseInt(buyInputs[listing.listingId]) <= 0 || 
-                          parseInt(buyInputs[listing.listingId]) > parseInt(listing.availableAmount)
-                        }
-                      >
-                        <ShoppingCart size={16} className="inline mr-1" /> Buy Now
-                      </button>
-                    </div>
+                    )}
                   </div>
-                )
+                </div>
               ))}
             </div>
           </section>
@@ -210,6 +219,6 @@ const SellNFT = () => {
       )}
     </div>
   );
-};
+}
 
 export default SellNFT;
