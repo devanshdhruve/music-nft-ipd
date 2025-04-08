@@ -9,6 +9,25 @@ export const useMarketplaceNFTs = (account, alchemy) => {
   const [error, setError] = useState(null);
   const [buyInputs, setBuyInputs] = useState({});
 
+  const removeZeroAmountNFTs = useCallback((listings) => {
+    return listings.filter(listing => {
+      const amount = ethers.toBigInt(listing.availableAmount);
+      return amount > 0n;
+    });
+  }, []);
+
+  const updateNFTAmount = useCallback((listingId, newAmount) => {
+    setMarketNfts(prevNfts => {
+      const updatedNfts = prevNfts.map(nft => {
+        if (nft.listingId === listingId) {
+          return { ...nft, availableAmount: newAmount.toString() };
+        }
+        return nft;
+      });
+      return removeZeroAmountNFTs(updatedNfts);
+    });
+  }, [removeZeroAmountNFTs]);
+
   const fetchMarketNfts = useCallback(async () => {
     if (!alchemy) return;
     setLoading(true);
@@ -65,10 +84,11 @@ export const useMarketplaceNFTs = (account, alchemy) => {
       await Promise.all(listingChecks);
 
       console.log("Processed market listings:", marketListings);
-      setMarketNfts(marketListings);
+      const filteredListings = removeZeroAmountNFTs(marketListings);
+      setMarketNfts(filteredListings);
       
       // Initialize buy inputs
-      const initialBuyInputs = marketListings.reduce((acc, listing) => { 
+      const initialBuyInputs = filteredListings.reduce((acc, listing) => { 
         acc[listing.listingId] = ''; 
         return acc; 
       }, {});
@@ -79,7 +99,7 @@ export const useMarketplaceNFTs = (account, alchemy) => {
     } finally { 
       setLoading(false); 
     }
-  }, [alchemy]);
+  }, [alchemy, removeZeroAmountNFTs]);
 
   useEffect(() => {
     if (alchemy) {
@@ -100,6 +120,7 @@ export const useMarketplaceNFTs = (account, alchemy) => {
     error,
     buyInputs,
     handleBuyInputChange,
-    refreshMarketNFTs: fetchMarketNfts
+    refreshMarketNFTs: fetchMarketNfts,
+    updateNFTAmount
   };
 };
