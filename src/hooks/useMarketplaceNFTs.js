@@ -9,25 +9,6 @@ export const useMarketplaceNFTs = (account, alchemy) => {
   const [error, setError] = useState(null);
   const [buyInputs, setBuyInputs] = useState({});
 
-  const removeZeroAmountNFTs = useCallback((listings) => {
-    return listings.filter(listing => {
-      const amount = ethers.toBigInt(listing.availableAmount);
-      return amount > 0n;
-    });
-  }, []);
-
-  const updateNFTAmount = useCallback((listingId, newAmount) => {
-    setMarketNfts(prevNfts => {
-      const updatedNfts = prevNfts.map(nft => {
-        if (nft.listingId === listingId) {
-          return { ...nft, availableAmount: newAmount.toString() };
-        }
-        return nft;
-      });
-      return removeZeroAmountNFTs(updatedNfts);
-    });
-  }, [removeZeroAmountNFTs]);
-
   const fetchMarketNfts = useCallback(async () => {
     if (!alchemy) return;
     setLoading(true);
@@ -47,36 +28,42 @@ export const useMarketplaceNFTs = (account, alchemy) => {
 
       const listingChecks = allNftInfo.map(async (nftInfo) => {
         const tokenId = nftInfo.tokenId.toString();
-        const creator = nftInfo.creator;
+        
+        // Check for listings from both creator and current account
+        const sellersToCheck = [nftInfo.creator];
+        if (account && account !== nftInfo.creator) {
+          sellersToCheck.push(account);
+        }
 
-        // 2. Check if the CREATOR has an active listing
-        try {
-          const listing = await contract.getListing(tokenId, creator);
-          const availableAmount = ethers.toBigInt(listing.amount);
+        for (const seller of sellersToCheck) {
+          try {
+            const listing = await contract.getListing(tokenId, seller);
+            const availableAmount = ethers.toBigInt(listing.amount);
 
-          if (availableAmount > 0n) {
-            // 3. If listed, fetch metadata
-            if (!metadataCache[tokenId]) {
-              metadataCache[tokenId] = await fetchContractMetadata(contract, tokenId);
+            if (availableAmount > 0n) {
+              // If listed, fetch metadata
+              if (!metadataCache[tokenId]) {
+                metadataCache[tokenId] = await fetchContractMetadata(contract, tokenId);
+              }
+              const metadata = metadataCache[tokenId];
+
+              const listingId = `${contractAddress}-${tokenId}-${seller}`;
+
+              marketListings.push({
+                listingId,
+                tokenId,
+                seller,
+                price: listing.price,
+                availableAmount: availableAmount.toString(),
+                name: metadata.name,
+                imageUrl: metadata.imageUrl,
+              });
+              console.log(`Found active listing for token ${tokenId} by seller ${seller}`);
             }
-            const metadata = metadataCache[tokenId];
-
-            const listingId = `${contractAddress}-${tokenId}-${creator}`;
-
-            marketListings.push({
-              listingId,
-              tokenId,
-              seller: creator,
-              price: listing.price,
-              availableAmount: availableAmount.toString(),
-              name: metadata.name,
-              imageUrl: metadata.imageUrl,
-            });
-            console.log(`Found active listing for token ${tokenId} by creator ${creator}`);
-          }
-        } catch (e) {
-          if (!e.message?.includes("NFTNotFound") && !e.message?.includes("Listing not found")) {
-            console.warn(`Could not check listing for token ${tokenId} from creator ${creator}:`, e.message);
+          } catch (e) {
+            if (!e.message?.includes("NFTNotFound") && !e.message?.includes("Listing not found")) {
+              console.warn(`Could not check listing for token ${tokenId} from seller ${seller}:`, e.message);
+            }
           }
         }
       });
@@ -84,11 +71,10 @@ export const useMarketplaceNFTs = (account, alchemy) => {
       await Promise.all(listingChecks);
 
       console.log("Processed market listings:", marketListings);
-      const filteredListings = removeZeroAmountNFTs(marketListings);
-      setMarketNfts(filteredListings);
+      setMarketNfts(marketListings);
       
       // Initialize buy inputs
-      const initialBuyInputs = filteredListings.reduce((acc, listing) => { 
+      const initialBuyInputs = marketListings.reduce((acc, listing) => { 
         acc[listing.listingId] = ''; 
         return acc; 
       }, {});
@@ -99,7 +85,7 @@ export const useMarketplaceNFTs = (account, alchemy) => {
     } finally { 
       setLoading(false); 
     }
-  }, [alchemy, removeZeroAmountNFTs]);
+  }, [alchemy, account]);
 
   useEffect(() => {
     if (alchemy) {
@@ -120,7 +106,6 @@ export const useMarketplaceNFTs = (account, alchemy) => {
     error,
     buyInputs,
     handleBuyInputChange,
-    refreshMarketNFTs: fetchMarketNfts,
-    updateNFTAmount
+    refreshMarketNFTs: fetchMarketNfts
   };
 };
