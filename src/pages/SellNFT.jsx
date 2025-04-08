@@ -1,5 +1,5 @@
 import React from "react";
-import { Music, Tag, Hash, ShoppingCart } from "lucide-react";
+import { Music, Tag, Hash, ShoppingCart, Star } from "lucide-react";
 import { ethers } from "ethers";
 
 // Import custom hooks
@@ -149,28 +149,41 @@ const SellNFT = () => {
             </div>
           </section>
 
-                    {/* Section 2: Marketplace Listings (for Buying) */}
+          {/* Section 2: Marketplace Listings (for Buying) */}
           <section>
             <h2 className="text-3xl font-bold mb-6 border-b border-gray-700 pb-2">Marketplace Listings</h2>
             {loadingMarket && <p className="text-purple-300 text-center">Loading marketplace listings...</p>}
             {errorMarket && !loadingMarket && !generalError && <p className="text-red-400 text-center mb-4">{errorMarket}</p>}
             {!loadingMarket && marketNfts.length === 0 && !errorMarket && !generalError && (
-              <p className="text-gray-400 text-center">No NFTs currently listed for sale by creators on the marketplace.</p>
+              <p className="text-gray-400 text-center">No NFTs currently listed for sale on the marketplace.</p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Remove the outer filter condition */}
               {marketNfts.map((listing) => (
                 <div key={listing.listingId} className="bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-700 flex flex-col">
-                  <img src={listing.imageUrl} alt={listing.name} className="w-full h-48 object-cover bg-gray-700" onError={(e) => { e.target.src="/placeholder.png"; }}/>
+                  <div className="relative">
+                    <img src={listing.imageUrl} alt={listing.name} className="w-full h-48 object-cover bg-gray-700" onError={(e) => { e.target.src="/placeholder.png"; }}/>
+                    {listing.isCreator && (
+                      <div className="absolute top-2 right-2 bg-purple-600 text-white px-2 py-1 rounded-full text-xs flex items-center">
+                        <Star size={12} className="mr-1" />
+                        Creator
+                      </div>
+                    )}
+                  </div>
                   <div className="p-4 flex flex-col flex-grow">
-                    {/* Display listing details for everyone */}
                     <h3 className="text-xl font-semibold mb-1 truncate" title={listing.name}>{listing.name}</h3>
-                    <p className="text-xs text-gray-500 mb-1 truncate" title={listing.seller}>Seller: {listing.seller}</p>
+                    <p className="text-xs text-gray-500 mb-1 truncate" title={listing.seller}>
+                      Seller: {listing.seller.slice(0, 6)}...{listing.seller.slice(-4)}
+                    </p>
+                    {listing.creator && (
+                      <p className="text-xs text-gray-500 mb-1 truncate" title={listing.creator}>
+                        Creator: {listing.creator.slice(0, 6)}...{listing.creator.slice(-4)}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-400 mb-1">ID: {listing.tokenId}</p>
                     <p className="text-md font-semibold text-purple-300 mb-2">{ethers.formatEther(listing.price)} ETH</p>
                     <p className="text-sm text-gray-400 mb-3">Available: {listing.availableAmount}</p>
 
-                    {/* Conditionally render Buy controls or 'Your Listing' message */}
+                    {/* Show buy controls only if not the seller */}
                     {listing.seller.toLowerCase() !== account.toLowerCase() ? (
                       <>
                         {/* Buy Input */}

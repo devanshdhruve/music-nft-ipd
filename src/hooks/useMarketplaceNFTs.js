@@ -13,64 +13,165 @@ export const useMarketplaceNFTs = (account, alchemy) => {
     if (!alchemy) return;
     setLoading(true);
     setError(null);
-    console.log(`Fetching MARKET NFTs`);
+    console.log(`Fetching MARKET NFTs with account:`, account);
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const contract = getContract(provider);
       const contractAddress = await contract.getAddress();
+      console.log("Contract address:", contractAddress);
 
-      // 1. Get all created NFTs
-      const allNftInfo = await contract.getAllMusicNFTs();
-      console.log("All created NFT info:", allNftInfo);
+      // Get all NFTs
+      const allNfts = await contract.getAllMusicNFTs();
+      console.log("All NFTs from contract:", allNfts);
+
+      if (!allNfts || allNfts.length === 0) {
+        console.log("No NFTs found in contract");
+        setMarketNfts([]);
+        return;
+      }
 
       const marketListings = [];
       const metadataCache = {};
 
-      const listingChecks = allNftInfo.map(async (nftInfo) => {
-        const tokenId = nftInfo.tokenId.toString();
-        
-        // Check for listings from both creator and current account
-        const sellersToCheck = [nftInfo.creator];
-        if (account && account !== nftInfo.creator) {
-          sellersToCheck.push(account);
-        }
+      // Process each NFT
+      for (const nftInfo of allNfts) {
+        try {
+          // Skip if NFT info is invalid
+          if (!nftInfo || !nftInfo.tokenId) {
+            console.log("Skipping invalid NFT info:", nftInfo);
+            continue;
+          }
 
-        for (const seller of sellersToCheck) {
-          try {
-            const listing = await contract.getListing(tokenId, seller);
-            const availableAmount = ethers.toBigInt(listing.amount);
+          const tokenId = nftInfo.tokenId.toString();
+          console.log(`\nProcessing NFT ${tokenId}:`, {
+            name: nftInfo.name,
+            creator: nftInfo.creator,
+            currentSupply: nftInfo.currentSupply.toString(),
+            maxSupply: nftInfo.maxSupply.toString(),
+            isActive: nftInfo.isActive
+          });
+          
+          // Get metadata
+          if (!metadataCache[tokenId]) {
+            metadataCache[tokenId] = {
+              name: nftInfo.name || `NFT #${tokenId}`,
+              description: nftInfo.description || "",
+              imageUrl: nftInfo.imageUrl || "",
+              musicUrl: nftInfo.musicUrl || ""
+            };
+          }
+          const metadata = metadataCache[tokenId];
 
-            if (availableAmount > 0n) {
-              // If listed, fetch metadata
-              if (!metadataCache[tokenId]) {
-                metadataCache[tokenId] = await fetchContractMetadata(contract, tokenId);
+          // First check if current user has a listing
+          if (account) {
+            try {
+              const userListing = await contract.getListing(tokenId, account);
+              console.log(`Current user listing for token ${tokenId}:`, userListing);
+              
+              if (userListing && ethers.toBigInt(userListing.amount || 0) > 0n) {
+                const listingId = `${contractAddress}-${tokenId}-${account}`;
+                const isCreator = account.toLowerCase() === nftInfo.creator.toLowerCase();
+                
+                marketListings.push({
+                  listingId,
+                  tokenId,
+                  seller: account,
+                  price: userListing.price,
+                  availableAmount: userListing.amount.toString(),
+                  name: metadata.name,
+                  imageUrl: metadata.imageUrl,
+                  creator: nftInfo.creator,
+                  isCreator,
+                  isActive: true,
+                  currentSupply: nftInfo.currentSupply.toString(),
+                  maxSupply: nftInfo.maxSupply.toString()
+                });
+                console.log(`Added user's listing for token ${tokenId}`);
               }
-              const metadata = metadataCache[tokenId];
-
-              const listingId = `${contractAddress}-${tokenId}-${seller}`;
-
-              marketListings.push({
-                listingId,
-                tokenId,
-                seller,
-                price: listing.price,
-                availableAmount: availableAmount.toString(),
-                name: metadata.name,
-                imageUrl: metadata.imageUrl,
-              });
-              console.log(`Found active listing for token ${tokenId} by seller ${seller}`);
-            }
-          } catch (e) {
-            if (!e.message?.includes("NFTNotFound") && !e.message?.includes("Listing not found")) {
-              console.warn(`Could not check listing for token ${tokenId} from seller ${seller}:`, e.message);
+            } catch (e) {
+              console.log(`No listing found for current user for token ${tokenId}`);
             }
           }
+
+          // Then check creator's listing if creator is not the current user
+          if (nftInfo.creator.toLowerCase() !== account?.toLowerCase()) {
+            try {
+              const creatorListing = await contract.getListing(tokenId, nftInfo.creator);
+              console.log(`Creator listing for token ${tokenId}:`, creatorListing);
+              
+              if (creatorListing && ethers.toBigInt(creatorListing.amount || 0) > 0n) {
+                const listingId = `${contractAddress}-${tokenId}-${nftInfo.creator}`;
+                marketListings.push({
+                  listingId,
+                  tokenId,
+                  seller: nftInfo.creator,
+                  price: creatorListing.price,
+                  availableAmount: creatorListing.amount.toString(),
+                  name: metadata.name,
+                  imageUrl: metadata.imageUrl,
+                  creator: nftInfo.creator,
+                  isCreator: true,
+                  isActive: true,
+                  currentSupply: nftInfo.currentSupply.toString(),
+                  maxSupply: nftInfo.maxSupply.toString()
+                });
+                console.log(`Added creator's listing for token ${tokenId}`);
+              }
+            } catch (e) {
+              console.log(`No creator listing found for token ${tokenId}`);
+            }
+          }
+
+          // Get all transfer events to find other holders
+          const filter = contract.filters.TransferSingle(null, null, null, tokenId, null);
+          const events = await contract.queryFilter(filter);
+          const uniqueHolders = new Set();
+
+          // Add all recipients from transfer events (excluding creator and current user)
+          events.forEach(event => {
+            const holder = event.args[2];
+            if (holder.toLowerCase() !== nftInfo.creator.toLowerCase() && 
+                holder.toLowerCase() !== account?.toLowerCase()) {
+              uniqueHolders.add(holder);
+            }
+          });
+
+          console.log(`Found ${uniqueHolders.size} other holders for token ${tokenId}`);
+
+          // Check listings for other holders
+          for (const holder of uniqueHolders) {
+            try {
+              const listing = await contract.getListing(tokenId, holder);
+              console.log(`Checking listing for token ${tokenId} from holder ${holder}:`, listing);
+              
+              if (listing && ethers.toBigInt(listing.amount || 0) > 0n) {
+                const listingId = `${contractAddress}-${tokenId}-${holder}`;
+                marketListings.push({
+                  listingId,
+                  tokenId,
+                  seller: holder,
+                  price: listing.price,
+                  availableAmount: listing.amount.toString(),
+                  name: metadata.name,
+                  imageUrl: metadata.imageUrl,
+                  creator: nftInfo.creator,
+                  isCreator: false,
+                  isActive: true,
+                  currentSupply: nftInfo.currentSupply.toString(),
+                  maxSupply: nftInfo.maxSupply.toString()
+                });
+                console.log(`Added holder's listing for token ${tokenId}`);
+              }
+            } catch (e) {
+              console.log(`No listing found for holder ${holder} for token ${tokenId}`);
+            }
+          }
+        } catch (e) {
+          console.warn(`Error processing NFT ${nftInfo?.tokenId}:`, e);
         }
-      });
+      }
 
-      await Promise.all(listingChecks);
-
-      console.log("Processed market listings:", marketListings);
+      console.log("\nFinal market listings:", marketListings);
       setMarketNfts(marketListings);
       
       // Initialize buy inputs
