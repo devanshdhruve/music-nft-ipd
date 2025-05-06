@@ -44,6 +44,7 @@
     "hardhat": "^2.22.18",
     "hardhat-gas-reporter": "^1.0.10",
     "postcss": "^8.4.35",
+    "rollup": "^4.40.2",
     "solidity-coverage": "^0.8.14",
     "tailwindcss": "^3.4.1",
     "vite": "^5.4.2"
